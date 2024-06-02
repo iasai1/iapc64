@@ -1,4 +1,10 @@
 from __future__ import absolute_import, print_function, unicode_literals
+import base64
+import inspect
+import json
+import pickle
+import sys
+from ableton.v3.control_surface.elements.button import ButtonElement
 from ableton.v3.base import const, listens, task
 from ableton.v3.control_surface import ControlSurface, ControlSurfaceSpecification, create_skin
 from ableton.v3.control_surface.capabilities import CONTROLLER_ID_KEY, HIDDEN, NOTES_CC, PORTS_KEY, SCRIPT, SYNC, controller_id, inport, outport
@@ -70,6 +76,7 @@ class APC64(ControlSurface):
         self.component_map['Mixer'] = mixer
         super().setup()
         self._APC64__on_pad_mode_changed.subject = self.component_map['Pad_Modes']
+        logShit(self._c_instance)
 
     
     def find_button(self, name: str):
@@ -94,3 +101,60 @@ class APC64(ControlSurface):
         if selected_mode in ('session', 'session_overview', 'drum'):
             self._tasks.add(task.run(self.refresh_state))
         self.set_can_auto_arm(selected_mode not in ('session', 'session_overview'))
+
+def logShit(obj):
+    try:
+        # Collect serializable state
+        state = {k: v for k, v in obj.__dict__.items() if is_serializable(v)}
+
+        # Collect methods
+        methods = {name: str(method) for name, method in inspect.getmembers(obj, predicate=inspect.ismethod)}
+
+        # Prepare log message
+        state_str = "State:\n" + "\n".join([f"{k}: {v}" for k, v in state.items()])
+        methods_str = "Methods:\n" + "\n".join([f"{name}: {method}" for name, method in methods.items()])
+
+        # Log the state and methods
+        logMsg(state_str)
+        logMsg(methods_str)
+    except Exception as e:
+        logMsg(f"Failed to log object state and methods: {e}")
+
+def is_serializable(obj):
+    try:
+        str(obj)
+        return True
+    except:
+        return False
+
+global logMsg
+def logMsg(msg):
+    sys.stderr.write(msg)
+
+global logStuff
+def logStuff(myobj):
+        def custom_encoder(obj):
+            try:
+                # Get all attributes of the object
+                attributes = vars(obj)
+                # Serialize each attribute individually
+                serialized_attributes = {}
+                for key, value in attributes.items():
+                    try:
+                        # Get an array of variables excluding callable attributes
+                        variables = {var: getattr(obj, var) for var in dir(obj) if not callable(getattr(obj, var))}
+                        # Convert the variables to a JSON serializable format
+                        serialized_variables = {key: str(value) for key, value in variables.items()}
+                        # Return the serialized variables
+                        return json.dumps(serialized_variables, skipkeys=True)
+                    except TypeError:
+                        # Custom serialization for non-serializable types
+                        serialized_value = str(value)
+                    serialized_attributes[key] = serialized_value
+                # Return the serialized attributes
+                return json.dumps(serialized_attributes)
+                
+            except Exception as e:
+                # Handle serialization errors here
+                return str(obj)
+        sys.stderr.write(json.dumps(myobj, default=custom_encoder, indent=4))
