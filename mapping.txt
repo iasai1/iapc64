@@ -1,0 +1,5 @@
+1:1, EQ Three,
+1:2, Compressor,
+2:1, Saturator,
+8:1, Drum Rack, 808 Core Kit 
+8:2, Drum Rack, 606 Core Kit
